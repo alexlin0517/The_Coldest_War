@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="zh-TW" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PROJECT CHRONOS // 1960 冷戰全息戰略地球儀 (離線版)</title>
+  
+  <!-- 科幻 HUD 樣式表 -->
+  <link rel="stylesheet" href="style.css">
+
+  <!-- 1. 本地核心渲染器與地理數據 (完全移除 CDN，無網路環境 file:// 直開支援) -->
+  <script src="./js/globe.gl.min.js"></script>
+  <script src="./data/world-data.js"></script>
+  <script src="./data/cities-data.js"></script>
+
+  <!-- 2. 冷戰陣營與情報模組腳本 -->
+  <script src="./js/factions.js"></script>
+  <script src="./js/insignias.js"></script>
+  <script src="./js/intel.js"></script>
+  <script src="./js/audio.js"></script>
+  <script src="./js/borders.js"></script>
+</head>
+<body>
+
+  <!-- 3D Globe 渲染容器 -->
+  <div id="globeViz" style="position:absolute; inset:0; z-index:0;"></div>
+
+  <!-- CRT 掃描線與暗角光影層 -->
+  <div class="crt-overlay"></div>
+  <div class="vignette-overlay"></div>
+
+  <!-- 頂部戰略指揮 HUD (Header) -->
+  <header style="position:absolute; top:0; left:0; right:0; z-index:20; padding:16px 24px; display:flex; justify-content:space-between; align-items:center; pointer-events:none; flex-wrap:wrap; gap:12px;">
+    <div class="cyber-card" style="pointer-events:auto; padding:12px 20px; box-shadow:0 0 20px rgba(0,240,255,0.15);">
+      <div class="hud-corner-tl"></div>
+      <div class="hud-corner-br"></div>
+      <div style="display:flex; align-items:center; gap:12px;">
+        <span style="width:10px; height:10px; border-radius:50%; background:#00f0ff; box-shadow:0 0 8px #00f0ff; display:inline-block;"></span>
+        <h1 style="font-size:18px; font-weight:bold; letter-spacing:1px; color:#67e8f9; display:flex; align-items:center; gap:8px;">
+          <span>PROJECT CHRONOS</span>
+          <span style="font-size:11px; padding:2px 8px; border-radius:4px; background:rgba(6,28,50,0.8); border:1px solid rgba(0,240,255,0.5); color:#a5f3fc;">1960 THEATER</span>
+          <span style="font-size:11px; padding:2px 8px; border-radius:4px; background:rgba(60,6,24,0.8); border:1px solid rgba(255,0,128,0.5); color:#fbcfe8;">DEFCON 2</span>
+          <span style="font-size:11px; padding:2px 8px; border-radius:4px; background:rgba(6,60,30,0.8); border:1px solid rgba(0,255,128,0.5); color:#86efac;">OFFLINE LOCAL</span>
+        </h1>
+      </div>
+      <p style="font-size:11px; color:rgba(0,240,255,0.7); letter-spacing:1px; margin-top:4px;">
+        COLD WAR THEATER // 1960 蘇聯完整粗線國界、消弭內部國界與全球代理防務矩陣
+      </p>
+    </div>
+
+    <!-- 狀態資訊儀表 (右上方) -->
+    <div class="cyber-card" style="pointer-events:auto; padding:10px 18px; display:flex; align-items:center; gap:16px; font-size:12px;">
+      <div class="hud-corner-tl"></div>
+      <div class="hud-corner-br"></div>
+      <div>
+        <div style="font-size:10px; color:#94a3b8; text-transform:uppercase;">SOVIET BORDER</div>
+        <div style="color:#f472b6; font-weight:bold; display:flex; align-items:center; gap:6px;">
+          <span style="width:8px; height:8px; border-radius:50%; background:#ff0080; display:inline-block;"></span>
+          U.S.S.R. UNIFIED (粗線總國界框定)
+        </div>
+      </div>
+      <div style="height:24px; width:1px; background:rgba(0,240,255,0.2);"></div>
+      <div>
+        <div style="font-size:10px; color:#94a3b8; text-transform:uppercase;">ROTATION</div>
+        <div id="hud-rotation-status" style="color:#67e8f9; font-weight:600;">AUTO-SYNC</div>
+      </div>
+      <div style="height:24px; width:1px; background:rgba(0,240,255,0.2);"></div>
+      <div>
+        <div style="font-size:10px; color:#94a3b8; text-transform:uppercase;">TARGET COORD</div>
+        <div id="hud-coords" style="color:#67e8f9; font-weight:600;">LAT --.- | LNG --.-</div>
+      </div>
+    </div>
+  </header>
+
+  <!-- 左側陣營圖例與 1960 陣營分層 (Left Panel) -->
+  <aside style="position:absolute; top:105px; left:24px; z-index:20; width:340px; pointer-events:auto; max-height:calc(100vh - 180px); overflow-y:auto; padding-right:4px;">
+    <!-- 陣營情報矩陣 -->
+    <div class="cyber-card" style="padding:16px;">
+      <div class="hud-corner-tl"></div>
+      <div class="hud-corner-br"></div>
+
+      <div style="display:flex; justify-content:space-between; align-items:center; padding-bottom:8px; margin-bottom:12px; border-bottom:1px solid rgba(0,240,255,0.2);">
+        <h2 style="font-size:12px; font-weight:bold; letter-spacing:1px; color:#67e8f9; text-transform:uppercase;">
+          1960 FACTION MATRIX 陣營矩陣
+        </h2>
+        <span style="font-size:10px; padding:2px 6px; border-radius:4px; background:rgba(0,240,255,0.15); border:1px solid rgba(0,240,255,0.3); color:#67e8f9;">1960 RECON</span>
+      </div>
+
+      <div style="display:flex; flex-direction:column; gap:8px; font-size:11px;">
+        <!-- 東方核心同盟 (蘇聯整體粗線 + 華約) -->
+        <div style="padding:10px; border-radius:6px; background:rgba(60,8,30,0.4); border:1px solid rgba(255,0,128,0.5); display:flex; gap:10px; align-items:flex-start;">
+          <div style="width:14px; height:14px; border-radius:2px; background:rgba(255,0,128,0.4); border:2px solid #ff0080; box-shadow:0 0 10px #ff0080; flex-shrink:0; margin-top:2px;"></div>
+          <div style="flex:1;">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+              <span style="font-weight:bold; color:#f472b6;">東方同盟核心 (EAST CORE)</span>
+              <span style="font-size:10px; color:#ff0080;">U.S.S.R. / 華約</span>
+            </div>
+            <div style="color:#cbd5e1; margin-top:4px; line-height:1.4;">
+              <strong style="color:#f472b6;">蘇維埃聯邦 (粗線框定完整總國界)</strong>、波蘭、捷克、匈牙利、羅馬尼亞、保加利亞、阿爾巴尼亞；中國、北韓、蒙古、北越
+            </div>
+            <div style="margin-top:6px; color:#fbcfe8; font-size:10px; display:flex; align-items:center; gap:4px;">
+              <span style="width:6px; height:6px; border-radius:50%; background:#ff0080; display:inline-block;"></span>
+              <span>15 國加盟共和國內部國界已隱去，外邊界以粗線強光統一框選</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- 東方代理與友好盟邦 (淺霓虹粉) -->
+        <div style="padding:10px; border-radius:6px; background:rgba(60,8,30,0.2); border:1px solid rgba(255,80,160,0.4); display:flex; gap:10px; align-items:flex-start;">
+          <div style="width:14px; height:14px; border-radius:2px; background:rgba(255,60,150,0.25); border:1px solid rgba(255,80,160,0.8); box-shadow:0 0 6px rgba(255,80,160,0.5); flex-shrink:0; margin-top:2px;"></div>
+          <div style="flex:1;">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+              <span style="font-weight:bold; color:#fbcfe8;">東方代理 / 亞非拉同盟 (EAST PROXY)</span>
+              <span style="font-size:10px; color:#f472b6;">淺粉標示</span>
+            </div>
+            <div style="color:#cbd5e1; margin-top:4px; line-height:1.4;">
+              <span style="color:#f472b6; font-weight:600;">拉美：</span>古巴 (卡斯楚1960倒向蘇聯)<br/>
+              <span style="color:#f472b6; font-weight:600;">非洲/中東：</span>埃及(阿聯UAR/阿斯旺工程)、幾內亞、馬利、迦納、剛果(盧蒙巴派)、阿爾及利亞(FLN)、索馬利亞、伊拉克
+            </div>
+          </div>
+        </div>
+
+        <!-- 西方核心陣營 (美國本土+阿拉斯加粗線 + 北約) -->
+        <div style="padding:10px; border-radius:6px; background:rgba(6,28,50,0.4); border:1px solid rgba(0,240,255,0.5); display:flex; gap:10px; align-items:flex-start;">
+          <div style="width:14px; height:14px; border-radius:2px; background:rgba(0,240,255,0.4); border:2px solid #00f0ff; box-shadow:0 0 8px #00f0ff; flex-shrink:0; margin-top:2px;"></div>
+          <div style="flex:1;">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+              <span style="font-weight:bold; color:#67e8f9;">西方核心 (WEST CORE)</span>
+              <span style="font-size:10px; color:#00f0ff;">U.S.A. / NATO</span>
+            </div>
+            <div style="color:#cbd5e1; margin-top:4px; line-height:1.4;">
+              <strong style="color:#67e8f9;">美利堅合眾國 (粗線框定完整總國界)</strong>、英、法、西德、加、義、比、荷、盧、丹、挪、冰、葡、希、土；澳、紐、日、韓、台、菲、泰、巴基斯坦、伊朗
+            </div>
+            <div style="margin-top:6px; color:#a5f3fc; font-size:10px; display:flex; align-items:center; gap:4px;">
+              <span style="width:6px; height:6px; border-radius:50%; background:#00f0ff; display:inline-block;"></span>
+              <span>美利堅合眾國本土與阿拉斯加外邊界以粗線強光統一框選</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- 西方代理與拉美非洲盟邦 (淺天藍色) -->
+        <div style="padding:10px; border-radius:6px; background:rgba(6,28,50,0.2); border:1px solid rgba(0,210,255,0.4); display:flex; gap:10px; align-items:flex-start;">
+          <div style="width:14px; height:14px; border-radius:2px; background:rgba(0,190,255,0.25); border:1px solid rgba(0,210,255,0.8); box-shadow:0 0 6px rgba(0,210,255,0.5); flex-shrink:0; margin-top:2px;"></div>
+          <div style="flex:1;">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+              <span style="font-weight:bold; color:#bae6fd;">西方代理 / 美洲與非洲防務 (WEST PROXY)</span>
+              <span style="font-size:10px; color:#67e8f9;">淺青標示</span>
+            </div>
+            <div style="color:#cbd5e1; margin-top:4px; line-height:1.4;">
+              <span style="color:#67e8f9; font-weight:600;">拉美全境 OAS (里約公約)：</span>巴西、阿根廷、智利、哥倫比亞、委內瑞拉、墨西哥等<br/>
+              <span style="color:#67e8f9; font-weight:600;">非洲/中東親西盟友與防務區：</span>西班牙(美西基地協定)、利比亞(惠勒斯空軍基地)、摩洛哥、沙烏地、約旦、以色列、南非、衣索比亞、安哥拉、莫三比克、肯亞、法非共同體各國等
+            </div>
+          </div>
+        </div>
+
+        <!-- 不結盟/中立國 -->
+        <div style="padding:10px; border-radius:6px; background:rgba(15,23,42,0.4); border:1px solid rgba(71,85,105,0.6); display:flex; gap:10px; align-items:flex-start;">
+          <div style="width:14px; height:14px; border-radius:2px; background:rgba(71,85,105,0.3); border:1px solid #94a3b8; flex-shrink:0; margin-top:2px;"></div>
+          <div style="flex:1;">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+              <span style="font-weight:bold; color:#cbd5e1;">真正不結盟 / 中立國 (NEUTRAL)</span>
+              <span style="font-size:10px; color:#94a3b8;">暗灰藍</span>
+            </div>
+            <div style="color:#94a3b8; margin-top:4px; line-height:1.4;">
+              印度 (尼赫魯)、南斯拉夫 (狄托)、瑞典、瑞士、奧地利、芬蘭、愛爾蘭、印尼、阿富汗
+            </div>
+          </div>
+        </div>
+
+        <!-- 冷戰核心城市標記圖例 -->
+        <div style="padding:10px; border-radius:6px; background:rgba(4,10,24,0.6); border:1px solid rgba(0,240,255,0.25); display:flex; flex-direction:column; gap:6px; margin-top:4px;">
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <span style="font-weight:bold; color:#e2e8f0;">冷戰城市標記 (CITIES: 193)</span>
+            <span style="font-size:10px; color:#67e8f9;">HTML MARKERS</span>
+          </div>
+          <div style="display:flex; gap:12px; align-items:center; font-size:10px; margin-top:2px;">
+            <span style="display:flex; align-items:center; gap:4px; color:#67e8f9;">
+              <span style="width:6px; height:6px; border-radius:50%; background:#00f0ff; box-shadow:0 0 6px #00f0ff;"></span>
+              西方
+            </span>
+            <span style="display:flex; align-items:center; gap:4px; color:#f472b6;">
+              <span style="width:6px; height:6px; border-radius:50%; background:#ff0080; box-shadow:0 0 6px #ff0080;"></span>
+              東方
+            </span>
+            <span style="display:flex; align-items:center; gap:4px; color:#cbd5e1;">
+              <span style="width:6px; height:6px; border-radius:50%; background:#f1f5f9; box-shadow:0 0 6px #ffffff;"></span>
+              中立
+            </span>
+          </div>
+          <div style="color:#94a3b8; font-size:10px; line-height:1.3; margin-top:2px;">
+            <span style="color:#e2e8f0; font-weight:600;">Tier 1：</span>常駐科技名稱與十字準星<br/>
+            <span style="color:#e2e8f0; font-weight:600;">Tier 2：</span>懸停淡入名稱；點擊皆可 1.5 秒飛抵聚焦
+          </div>
+        </div>
+
+        <!-- 陣營國徽與地表浮水印圖例 -->
+        <div style="padding:10px; border-radius:6px; background:rgba(4,10,24,0.6); border:1px solid rgba(0,240,255,0.25); display:flex; flex-direction:column; gap:6px; margin-top:4px;">
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <span style="font-weight:bold; color:#e2e8f0;">冷戰陣營國徽 (INSIGNIAS)</span>
+            <span style="font-size:10px; color:#67e8f9;">HUD &amp; WATERMARKS</span>
+          </div>
+          <div style="color:#94a3b8; font-size:10px; line-height:1.35; margin-top:2px;">
+            <span style="color:#e2e8f0; font-weight:600;">地表浮水印：</span>美蘇中印澳巴沙伊古等 9 大國中心雷達光環<br/>
+            <span style="color:#e2e8f0; font-weight:600;">側欄徽章：</span>英法德日以埃朝韓等 48x48 向量發光國徽
+          </div>
+        </div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- 右側目標情報監控卡 (Right HUD Panel) -->
+  <aside style="position:absolute; top:105px; right:24px; z-index:20; width:360px; pointer-events:auto;">
+    <div class="cyber-card" style="padding:18px;">
+      <div class="hud-corner-tl"></div>
+      <div class="hud-corner-br"></div>
+
+      <div style="display:flex; justify-content:space-between; align-items:center; padding-bottom:8px; margin-bottom:12px; border-bottom:1px solid rgba(0,240,255,0.2);">
+        <h2 style="font-size:12px; font-weight:bold; letter-spacing:1px; color:#67e8f9; text-transform:uppercase;">
+          1960 TACTICAL RECON 目標偵察
+        </h2>
+        <span id="target-badge-status" style="font-size:10px; padding:2px 8px; border-radius:4px; background:rgba(0,240,255,0.15); border:1px solid rgba(0,240,255,0.3); color:#67e8f9;">SCANNING</span>
+      </div>
+
+      <!-- 未選取狀態 -->
+      <div id="target-idle-state" style="padding:24px 0; text-align:center; color:#94a3b8;">
+        <div style="width:44px; height:44px; margin:0 auto 12px; border-radius:50%; border:1px dashed rgba(0,240,255,0.4); display:flex; align-items:center; justify-content:center;">
+          <div style="width:8px; height:8px; border-radius:50%; background:#00f0ff;"></div>
+        </div>
+        <p style="font-size:12px; color:rgba(103,232,249,0.8); letter-spacing:1px;">AWAITING TARGET LOCK</p>
+        <p style="font-size:11px; color:#94a3b8; margin-top:4px;">請將滑鼠懸停於 3D 地球上的國家多邊形</p>
+      </div>
+
+      <!-- 選中/懸停國家詳細資訊 -->
+      <div id="target-detail-state" class="hidden" style="display:flex; flex-direction:column; gap:12px;">
+        <!-- 國家名稱、代碼與專屬國徽標章 -->
+        <div style="display:flex; justify-content:space-between; align-items:center; gap:12px;">
+          <div style="flex:1; min-width:0;">
+            <div style="font-size:10px; color:#94a3b8; text-transform:uppercase; letter-spacing:1px; display:flex; justify-content:space-between; margin-bottom:2px;">
+              <span>SOVEREIGN ENTITY / 1960 主權實體</span>
+              <span id="target-iso" style="font-family:inherit; color:#00f0ff; font-weight:bold;">---</span>
+            </div>
+            <div id="target-name" style="font-size:15px; font-weight:bold; color:#ffffff; letter-spacing:0.5px; line-height:1.25; word-break:break-word;">---</div>
+            <div id="target-subname" style="font-size:10.5px; color:#67e8f9; font-family:inherit; margin-top:2px; word-break:break-word;">---</div>
+          </div>
+          <!-- 48x48 科技國徽/陣營標章容器 -->
+          <div id="target-insignia" class="hud-insignia-box" title="1960 FACTION INSIGNIA">
+            <!-- 動態注入 SVG -->
+          </div>
+        </div>
+
+        <!-- 陣營狀態條 -->
+        <div style="padding:10px; border-radius:6px; background:rgba(0,0,0,0.4); border:1px solid rgba(0,240,255,0.25); display:flex; flex-direction:column; gap:6px; font-size:11px;">
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <span style="color:#94a3b8;">1960 陣營分層：</span>
+            <span id="target-faction" style="font-weight:bold; padding:2px 8px; border-radius:4px; font-size:11px;">---</span>
+          </div>
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <span style="color:#94a3b8;">防務條約 / 公約：</span>
+            <span id="target-pact" style="color:#e2e8f0; font-weight:500;">---</span>
+          </div>
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <span style="color:#94a3b8;">指管中樞 / 首腦：</span>
+            <span id="target-command" style="color:#67e8f9; font-family:inherit; font-size:11px;">---</span>
+          </div>
+        </div>
+
+        <!-- 1960 歷史態勢詳情 -->
+        <div id="target-alert-box" style="padding:10px; border-radius:6px; background:rgba(6,28,50,0.4); border:1px solid rgba(0,240,255,0.4); font-size:11px; color:#bae6fd; display:flex; align-items:flex-start; gap:8px; line-height:1.4;">
+          <span style="color:#00f0ff; font-weight:bold; flex-shrink:0;">▶</span>
+          <span id="target-alert-text">區域雷達防禦網就緒，衛星常態軌道掃描中。</span>
+        </div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- 底部視角快捷切換與互動控制台 (Bottom Dock) -->
+  <footer style="position:absolute; bottom:24px; left:50%; transform:translateX(-50%); z-index:20; pointer-events:auto; display:flex; align-items:center; justify-content:center; gap:12px; background:rgba(6,12,28,0.85); backdrop-filter:blur(8px); -webkit-backdrop-filter:blur(8px); border:1px solid rgba(0,240,255,0.3); padding:8px 18px; border-radius:9999px; box-shadow:0 0 25px rgba(0,0,0,0.8); font-size:11px; flex-wrap:wrap;">
+    <!-- 視角切換快捷鍵 -->
+    <div style="display:flex; align-items:center; gap:6px; padding-right:12px; border-right:1px solid rgba(0,240,255,0.25);">
+      <span style="color:#94a3b8; margin-right:4px;">1960 THEATER:</span>
+      <button onclick="focusView('global')" class="btn-cyber">全球 (GLOBAL)</button>
+      <button onclick="focusView('usa')" class="btn-cyber" style="border-color:#00f0ff; color:#a5f3fc;">美國本土 (U.S.A.)</button>
+      <button onclick="focusView('ussr')" class="btn-cyber-pink">蘇聯全境 (U.S.S.R.)</button>
+      <button onclick="focusView('yugo')" class="btn-cyber" style="border-color:#94a3b8; color:#cbd5e1;">南斯拉夫 (YUG)</button>
+      <button onclick="focusView('cuba')" class="btn-cyber-pink">加勒比/古巴 (CUBA)</button>
+      <button onclick="focusView('africa')" class="btn-cyber">非洲/中東前沿 (AFRICA)</button>
+      <button onclick="focusView('americas')" class="btn-cyber">美洲 OAS (RIO PACT)</button>
+    </div>
+
+    <!-- 輔助控制開關 -->
+    <div style="display:flex; align-items:center; gap:8px;">
+      <!-- 自動旋轉開關 -->
+      <button id="btn-toggle-rotate" onclick="toggleAutoRotate()" class="btn-cyber" style="display:flex; align-items:center; gap:6px;">
+        <span style="width:8px; height:8px; border-radius:50%; background:#4ade80;"></span>
+        <span>自轉: 開啟</span>
+      </button>
+
+      <!-- 音效開關 -->
+      <button id="btn-toggle-audio" onclick="toggleAudio()" class="btn-cyber" style="color:#cbd5e1; border-color:#64748b;">
+        <span>🔊 音效: 開</span>
+      </button>
+    </div>
+  </footer>
+
+  <!-- 載入中遮罩 (離線本機載入通常在 0.2 秒內完成並淡出) -->
+  <div id="loading-screen" style="position:absolute; inset:0; z-index:50; background:#02050e; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:16px; transition:opacity 0.5s ease;">
+    <div style="position:relative; width:64px; height:64px;">
+      <div style="position:absolute; inset:0; border-radius:50%; border:2px solid rgba(0,240,255,0.2);"></div>
+      <div style="position:absolute; inset:0; border-radius:50%; border:2px solid transparent; border-top-color:#00f0ff; animation:spin 1s linear infinite;"></div>
+      <div style="position:absolute; inset:8px; border-radius:50%; border:2px solid rgba(255,0,128,0.2);"></div>
+      <div style="position:absolute; inset:8px; border-radius:50%; border:2px solid transparent; border-bottom-color:#ff0080; animation:spin 1.5s linear infinite reverse;"></div>
+      <div style="position:absolute; inset:0; display:flex; align-items:center; justify-content:center; font-weight:bold; font-size:11px; color:#67e8f9;">1960</div>
+    </div>
+    <div style="text-align:center;">
+      <h3 style="font-size:13px; font-weight:bold; letter-spacing:1px; color:#67e8f9;">INITIATING 1960 HOLO-GLOBE PROTOCOL</h3>
+      <p id="loading-status-text" style="font-size:11px; color:#94a3b8; margin-top:4px;">載入本機離線數據 (./data/world-data.js)...</p>
+    </div>
+  </div>
+<!-- 主邏輯腳本 -->
+
+  <!-- 3. 主應用程式邏輯 -->
+  <script src="main.js"></script>
+</body>
+</html>

@@ -1,0 +1,583 @@
+/* ====================================================
+   PROJECT CHRONOS // 1960 COLD WAR HUD STYLESHEET
+   Pure Offline Futuristic Sci-Fi UI / Glassmorphism
+   ==================================================== */
+
+/* 基礎重設與科幻字型 */
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+    body {
+      width: 100vw;
+      height: 100vh;
+      overflow: hidden;
+      user-select: none;
+      font-family: 'Consolas', 'Fira Code', 'Monaco', 'Courier New', monospace;
+      color: #e2e8f0;
+      background-color: #02050e;
+      background-image: 
+        radial-gradient(circle at 50% 50%, rgba(8, 22, 54, 0.55) 0%, rgba(2, 5, 14, 0.96) 80%),
+        linear-gradient(rgba(0, 240, 255, 0.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(0, 240, 255, 0.03) 1px, transparent 1px);
+      background-size: 100% 100%, 40px 40px, 40px 40px;
+    }
+
+    /* 覆蓋式 CRT 掃描線光柵 */
+    .crt-overlay {
+      position: absolute;
+      inset: 0;
+      z-index: 10;
+      background: linear-gradient(
+        rgba(18, 16, 16, 0) 50%, 
+        rgba(0, 0, 0, 0.28) 50%
+      );
+      background-size: 100% 4px;
+      pointer-events: none;
+    }
+
+    /* 暗角暗度特效 (Vignette) */
+    .vignette-overlay {
+      position: absolute;
+      inset: 0;
+      z-index: 10;
+      background: radial-gradient(circle at center, transparent 40%, rgba(1, 3, 8, 0.88) 100%);
+      pointer-events: none;
+    }
+
+    /* 科幻 HUD 角落裝飾邊框 */
+    .hud-corner-tl {
+      position: absolute;
+      top: -1px;
+      left: -1px;
+      width: 10px;
+      height: 10px;
+      border-top: 2px solid #00f0ff;
+      border-left: 2px solid #00f0ff;
+    }
+    .hud-corner-br {
+      position: absolute;
+      bottom: -1px;
+      right: -1px;
+      width: 10px;
+      height: 10px;
+      border-bottom: 2px solid #00f0ff;
+      border-right: 2px solid #00f0ff;
+    }
+
+    /* 自定義捲軸 */
+    ::-webkit-scrollbar {
+      width: 4px;
+    }
+    ::-webkit-scrollbar-track {
+      background: rgba(4, 10, 25, 0.6);
+    }
+    ::-webkit-scrollbar-thumb {
+      background: rgba(0, 240, 255, 0.4);
+      border-radius: 2px;
+    }
+
+    /* 本地 HUD 卡片與控制面板排版樣式 */
+    .cyber-card {
+      background: rgba(6, 12, 28, 0.85);
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+      border: 1px solid rgba(0, 240, 255, 0.3);
+      border-radius: 8px;
+      box-shadow: 0 0 20px rgba(0, 0, 0, 0.65);
+      position: relative;
+    }
+    .hud-badge {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-size: 11px;
+      font-weight: bold;
+    }
+    .btn-cyber {
+      background: rgba(8, 28, 60, 0.6);
+      border: 1px solid rgba(0, 240, 255, 0.4);
+      color: #67e8f9;
+      padding: 4px 12px;
+      border-radius: 9999px;
+      cursor: pointer;
+      font-size: 11px;
+      font-family: inherit;
+      transition: all 0.2s ease;
+    }
+    .btn-cyber:hover {
+      background: rgba(0, 240, 255, 0.25);
+      border-color: #00f0ff;
+      box-shadow: 0 0 10px rgba(0, 240, 255, 0.4);
+    }
+    .btn-cyber-pink {
+      background: rgba(60, 8, 30, 0.6);
+      border: 1px solid rgba(255, 0, 128, 0.4);
+      color: #f472b6;
+      padding: 4px 12px;
+      border-radius: 9999px;
+      cursor: pointer;
+      font-size: 11px;
+      font-family: inherit;
+      transition: all 0.2s ease;
+    }
+    .btn-cyber-pink:hover {
+      background: rgba(255, 0, 128, 0.25);
+      border-color: #ff0080;
+      box-shadow: 0 0 10px rgba(255, 0, 128, 0.4);
+    }
+    .hidden {
+      display: none !important;
+    }
+
+    /* ==========================================
+       冷戰城市 HTML 標記與科幻 HUD 準星樣式
+       ========================================== */
+    .city-marker {
+      position: relative;
+      width: 0;
+      height: 0;
+      pointer-events: auto;
+      cursor: pointer;
+      user-select: none;
+    }
+
+    /* 陣營色彩設定 */
+    .city-marker.faction-western {
+      --city-color: #00f0ff;
+      --city-glow: rgba(0, 240, 255, 0.85);
+      --city-bg: rgba(0, 240, 255, 0.2);
+    }
+    .city-marker.faction-eastern {
+      --city-color: #ff0080;
+      --city-glow: rgba(255, 0, 128, 0.85);
+      --city-bg: rgba(255, 0, 128, 0.2);
+    }
+    .city-marker.faction-neutral {
+      --city-color: #f1f5f9;
+      --city-glow: rgba(241, 245, 249, 0.8);
+      --city-bg: rgba(148, 163, 184, 0.25);
+    }
+
+    /* 隱形命中感應區 (22px 觸控點，確保小光點亦能輕鬆點擊與懸停) */
+    .city-hitbox {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 22px;
+      height: 22px;
+      transform: translate(-50%, -50%);
+      cursor: pointer;
+      z-index: 10;
+    }
+
+    /* 城市中央發光原點 */
+    .city-dot {
+      position: absolute;
+      top: 0;
+      left: 0;
+      transform: translate(-50%, -50%);
+      border-radius: 50%;
+      background-color: var(--city-color);
+      box-shadow: 0 0 6px var(--city-color), 0 0 12px var(--city-glow);
+      z-index: 2;
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    /* Tier 1 尺寸與呼吸燈 */
+    .city-marker.tier-1 .city-dot {
+      width: 7px;
+      height: 7px;
+      animation: city-breathe 2.4s ease-in-out infinite;
+    }
+
+    /* Tier 2 尺寸與微光呼吸燈 */
+    .city-marker.tier-2 .city-dot {
+      width: 4px;
+      height: 4px;
+      animation: city-breathe-subtle 3.2s ease-in-out infinite;
+    }
+
+    /* 懸停時放大光點 */
+    .city-marker:hover .city-dot {
+      transform: translate(-50%, -50%) scale(1.6);
+      box-shadow: 0 0 12px var(--city-color), 0 0 20px var(--city-color);
+    }
+
+    /* 呼吸燈動畫 */
+    @keyframes city-breathe {
+      0%, 100% {
+        transform: translate(-50%, -50%) scale(1);
+        box-shadow: 0 0 5px var(--city-color), 0 0 10px var(--city-glow);
+        opacity: 0.9;
+      }
+      50% {
+        transform: translate(-50%, -50%) scale(1.4);
+        box-shadow: 0 0 12px var(--city-color), 0 0 22px var(--city-glow);
+        opacity: 1;
+      }
+    }
+
+    @keyframes city-breathe-subtle {
+      0%, 100% {
+        transform: translate(-50%, -50%) scale(1);
+        box-shadow: 0 0 3px var(--city-color), 0 0 6px var(--city-glow);
+        opacity: 0.75;
+      }
+      50% {
+        transform: translate(-50%, -50%) scale(1.3);
+        box-shadow: 0 0 7px var(--city-color), 0 0 12px var(--city-glow);
+        opacity: 1;
+      }
+    }
+
+    /* Tier 1 雷達微光波紋 (Ping) */
+    .city-ping {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      border: 1px solid var(--city-color);
+      transform: translate(-50%, -50%);
+      animation: city-radar-ping 2.6s cubic-bezier(0, 0.2, 0.8, 1) infinite;
+      pointer-events: none;
+    }
+
+    @keyframes city-radar-ping {
+      0% {
+        width: 6px;
+        height: 6px;
+        opacity: 0.9;
+        transform: translate(-50%, -50%) scale(1);
+      }
+      100% {
+        width: 26px;
+        height: 26px;
+        opacity: 0;
+        transform: translate(-50%, -50%) scale(1.8);
+      }
+    }
+
+    /* Tier 1 十字準星線 (Crosshair / Reticle) */
+    .city-crosshair {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 18px;
+      height: 18px;
+      transform: translate(-50%, -50%);
+      pointer-events: none;
+      z-index: 1;
+    }
+
+    /* 十字橫線 */
+    .city-crosshair::before {
+      content: '';
+      position: absolute;
+      top: 50%;
+      left: 0;
+      width: 100%;
+      height: 1px;
+      background: var(--city-color);
+      opacity: 0.55;
+      transform: translateY(-50%);
+    }
+
+    /* 十字直線 */
+    .city-crosshair::after {
+      content: '';
+      position: absolute;
+      left: 50%;
+      top: 0;
+      height: 100%;
+      width: 1px;
+      background: var(--city-color);
+      opacity: 0.55;
+      transform: translateX(-50%);
+    }
+
+    /* 連接標籤的右上指示斜線 (Leader Line) */
+    .city-leader {
+      position: absolute;
+      left: 0;
+      bottom: 0;
+      width: 9px;
+      height: 7px;
+      border-top: 1px solid var(--city-color);
+      border-right: 1px solid var(--city-color);
+      opacity: 0.65;
+      pointer-events: none;
+      transform: skewX(-15deg);
+    }
+
+    /* 城市名稱標籤 (右上放置) */
+    .city-label {
+      position: absolute;
+      left: 10px;
+      bottom: 6px;
+      white-space: nowrap;
+      font-family: 'Consolas', 'Fira Code', 'Monaco', 'Courier New', monospace;
+      letter-spacing: 0.8px;
+      color: #ffffff;
+      pointer-events: none;
+      z-index: 5;
+      text-shadow: 0 0 6px var(--city-color), 0 1px 3px rgba(0, 0, 0, 0.95);
+      background: rgba(2, 6, 18, 0.82);
+      backdrop-filter: blur(4px);
+      -webkit-backdrop-filter: blur(4px);
+      padding: 1px 6px;
+      border-radius: 3px;
+      line-height: 1.25;
+    }
+
+    /* Tier 1 標籤常駐顯示 */
+    .city-marker.tier-1 .city-label {
+      display: block;
+      font-size: 10px;
+      font-weight: 700;
+      border: 1px solid var(--city-color);
+      box-shadow: 0 0 8px rgba(0, 0, 0, 0.8), inset 0 0 6px var(--city-bg);
+    }
+
+    /* Tier 2 標籤預設隱藏，Hover 淡入顯示 */
+    .city-marker.tier-2 .city-label {
+      opacity: 0;
+      visibility: hidden;
+      font-size: 9px;
+      font-weight: 600;
+      border: 1px solid rgba(148, 163, 184, 0.4);
+      box-shadow: 0 0 8px rgba(0, 0, 0, 0.9);
+      transform: translate(2px, 2px);
+      transition: opacity 0.22s ease, transform 0.22s ease, visibility 0.22s;
+    }
+
+    .city-marker.tier-2:hover .city-label {
+      opacity: 1;
+      visibility: visible;
+      transform: translate(0, 0);
+      border-color: var(--city-color);
+      box-shadow: 0 0 10px var(--city-bg), 0 0 6px rgba(0, 0, 0, 0.9);
+    }
+
+    /* 城市標籤方向微調 (避免相鄰特大城市標籤重疊) */
+    .city-marker.pos-bl .city-label {
+      left: auto;
+      right: 10px;
+      bottom: auto;
+      top: 6px;
+    }
+    .city-marker.pos-bl .city-leader {
+      left: auto;
+      right: 0;
+      bottom: auto;
+      top: 0;
+      border-top: none;
+      border-right: none;
+      border-bottom: 1px solid var(--city-color);
+      border-left: 1px solid var(--city-color);
+      transform: skewX(-15deg);
+    }
+
+    .city-marker.pos-tl .city-label {
+      left: auto;
+      right: 10px;
+      bottom: 6px;
+    }
+    .city-marker.pos-tl .city-leader {
+      left: auto;
+      right: 0;
+      border-right: none;
+      border-left: 1px solid var(--city-color);
+      transform: skewX(15deg);
+    }
+
+    .city-marker.pos-br .city-label {
+      left: 10px;
+      bottom: auto;
+      top: 6px;
+    }
+    .city-marker.pos-br .city-leader {
+      bottom: auto;
+      top: 0;
+      border-top: none;
+      border-bottom: 1px solid var(--city-color);
+      transform: skewX(15deg);
+    }
+
+    /* ====================================================
+       1960 冷戰陣營國家標章/國徽 (Insignias & Watermarks)
+       ==================================================== */
+    /* 第一層：地表大國投影浮水印標章 (Surface Watermark) */
+    .surface-watermark {
+      position: absolute;
+      width: 0;
+      height: 0;
+      pointer-events: none; /* 嚴格禁止阻擋滑鼠點擊城市或國家多邊形 */
+      user-select: none;
+      z-index: 2;
+    }
+
+    .surface-watermark.faction-WEST_CORE,
+    .surface-watermark.faction-WEST_PROXY {
+      --wm-color: #00f0ff;
+      --wm-glow: rgba(0, 240, 255, 0.6);
+      color: #00f0ff;
+    }
+
+    .surface-watermark.faction-EAST_CORE,
+    .surface-watermark.faction-EAST_PROXY {
+      --wm-color: #ff0080;
+      --wm-glow: rgba(255, 0, 128, 0.6);
+      color: #ff0080;
+    }
+
+    .surface-watermark.faction-NEUTRAL {
+      --wm-color: #e2e8f0;
+      --wm-glow: rgba(226, 232, 240, 0.45);
+      color: #e2e8f0;
+    }
+
+    /* 浮水印主體容器 (獨立承載呼吸燈縮放與居中，絕不干擾 Globe.gl 根元素 3D 坐標) */
+    .watermark-body {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 82px;
+      height: 82px;
+      transform: translate(-50%, -50%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      pointer-events: none;
+      animation: watermark-pulse 6.5s ease-in-out infinite;
+    }
+
+    /* 外圈緩慢旋轉的科技雷達虛線圈 (HUD Ring) */
+    .watermark-hud-ring {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      filter: drop-shadow(0 0 6px var(--wm-glow));
+      animation: rotate-hud-ring 36s linear infinite;
+    }
+
+    @keyframes rotate-hud-ring {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
+    }
+
+    @keyframes watermark-pulse {
+      0%, 100% {
+        opacity: 0.65;
+        transform: translate(-50%, -50%) scale(0.96);
+      }
+      50% {
+        opacity: 0.95;
+        transform: translate(-50%, -50%) scale(1.04);
+      }
+    }
+
+    .watermark-emblem {
+      width: 48px;
+      height: 48px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      filter: drop-shadow(0 0 8px var(--wm-glow));
+    }
+
+    .watermark-emblem svg {
+      width: 100%;
+      height: 100%;
+    }
+
+    .watermark-label {
+      position: absolute;
+      bottom: -13px;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: 8.5px;
+      font-weight: 700;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      color: var(--wm-color);
+      opacity: 0.85;
+      text-shadow: 0 0 8px var(--wm-glow), 0 1px 3px rgba(0, 0, 0, 0.95);
+      white-space: nowrap;
+      pointer-events: none;
+    }
+
+    /* 蘇聯專屬特大號地表全像浮水印 (顯著放大並覆蓋歐亞核心疆域) */
+    .watermark-superpower-sov .watermark-body {
+      width: 148px;
+      height: 148px;
+    }
+
+    .watermark-superpower-sov .watermark-emblem {
+      width: 92px;
+      height: 92px;
+      filter: drop-shadow(0 0 14px var(--wm-glow));
+    }
+
+    .watermark-superpower-sov .watermark-label {
+      bottom: -18px;
+      font-size: 11.5px;
+      font-weight: 800;
+      letter-spacing: 2.5px;
+      text-shadow: 0 0 12px var(--wm-glow), 0 2px 5px rgba(0, 0, 0, 0.95);
+    }
+
+    /* 第二層：側邊 HUD 資訊面板專屬國徽容器 */
+    .hud-insignia-box {
+      width: 48px;
+      height: 48px;
+      flex-shrink: 0;
+      border-radius: 6px;
+      background: rgba(4, 10, 24, 0.75);
+      border: 1px solid rgba(0, 240, 255, 0.4);
+      box-shadow: 0 0 14px rgba(0, 240, 255, 0.2);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 5px;
+      color: #00f0ff;
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .hud-insignia-box.faction-WEST_CORE,
+    .hud-insignia-box.faction-WEST_PROXY {
+      border-color: rgba(0, 240, 255, 0.6);
+      box-shadow: 0 0 14px rgba(0, 240, 255, 0.25);
+      color: #00f0ff;
+    }
+
+    .hud-insignia-box.faction-EAST_CORE,
+    .hud-insignia-box.faction-EAST_PROXY {
+      border-color: rgba(255, 0, 128, 0.6);
+      box-shadow: 0 0 14px rgba(255, 0, 128, 0.25);
+      color: #ff0080;
+    }
+
+    .hud-insignia-box.faction-NEUTRAL {
+      border-color: rgba(148, 163, 184, 0.5);
+      box-shadow: 0 0 12px rgba(148, 163, 184, 0.2);
+      color: #e2e8f0;
+    }
+
+    .hud-insignia-box svg {
+      width: 100%;
+      height: 100%;
+      filter: drop-shadow(0 0 4px currentColor);
+    }
+
+/* Spin animation for radar / loader */
+@keyframes spin {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
+    }
